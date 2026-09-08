@@ -1,10 +1,22 @@
 # CNGoldenLink
 
+OBS Overlay 包含 APEX 与 ORBIT 两套主题，由 Mod 本地托管；独立视觉预览和前端说明见 [overlay-preview](overlay-preview/README.md)。
+
 CN 金榜的 Celeste 联动 Mod，版本 0.1。
 
 在 Mod 菜单开启连接后，通过浏览器登录 CN 金榜并授权，默认每 5 秒同步当前状态、CCT 统计和地图死亡数据。同步间隔可在菜单调整，服务地址可通过设置文件的 `ServiceBaseUrl` 修改。
 
 无金完整通关最少死亡始终在本地记录；连接开关只控制上传，重新连接后补传已保存的纪录。当前支持 Windows，依赖版本见 `everest.yaml`。
+
+## OBS Overlay
+
+在 Mod 菜单开启 `OBS Overlay`，点“打开控制页”，或访问 `http://localhost:32272/apex`、`http://localhost:32272/orbit`。端口可用设置文件中的 `OverlayPort` 修改；占用时服务不会启动，可改端口后重开开关。Overlay 开关独立于上传开关，获取金榜地图资料需要先完成现有金榜授权。
+
+OBS 添加浏览器源：`http://localhost:32272/apex?obs=1`（或 `orbit`），宽高 1920×1080。将游戏源放在下方，位置 X=24、Y=24，尺寸 1600×900。页面、字体和 SVG 均在本地，运行时不需要 Node.js。
+
+控制页的挑战下拉框按服务地址和地图 ID 记忆选择，同步影响 OBS；只有一个挑战时自动选中。设置保存在 `CNGoldenLinkData/overlay-selections.json`。未配对或服务不可用时仍显示本地 CCT 数据，不猜测金榜挑战或 Tier。金榜资料在切图时查询，正常每 5 分钟刷新、失败后每 30 秒重试；本地快照每 500ms 刷新，与远端上传间隔独立。
+
+需部署 CNGist 的 `/api/tracker/overlay-context` 接口，无新增迁移。带金通过率、进入率按当前 CCT 路线、分房间带金死亡及带金通关次数推算，沿用网站统计模型；合并房间合并统计、重复节点只计首次、忽略房间不参与路线推算。没有路线或样本时显示未知。游戏内最终效果仍需进入地图验证。
 
 ## 构建
 

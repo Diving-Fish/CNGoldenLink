@@ -11,6 +11,8 @@ public sealed class GoldenLinkSettings : EverestModuleSettings
     public string ServiceBaseUrl { get; set; } = "https://gist.diving-fish.com";
     public int UploadIntervalSeconds { get; set; } = 5;
     public bool DiagnosticsEnabled { get; set; }
+    public bool OverlayEnabled { get; set; }
+    public int OverlayPort { get; set; } = 32272;
 }
 
 public sealed class GoldenLinkSaveData : EverestModuleSaveData
@@ -27,6 +29,9 @@ public sealed class GoldenLinkModule : EverestModule
     private GoldenLinkSettings Settings => (GoldenLinkSettings)_Settings;
     private readonly NoGoldenAttempt noGolden = new();
     private RemoteUploader? uploader;
+    private OverlayServer? overlay;
+    private long nextOverlaySample;
+    private string? overlayError;
     private DiagnosticWriter? writer;
     private TextMenu.SubHeader? statusLine;
     private Task? forgetting;
@@ -57,6 +62,12 @@ public sealed class GoldenLinkModule : EverestModule
     }
     public override void CreateModMenuSection(TextMenu menu, bool inGame, FMOD.Studio.EventInstance snapshot) {
         menu.Add(new TextMenu.SubHeader("CN Golden Link"));
+        menu.Add(new TextMenu.OnOff("OBS Overlay", Settings.OverlayEnabled).Change(value => {
+            Settings.OverlayEnabled = value; overlayError = null;
+        }));
+        menu.Add(new TextMenu.Button("Open Overlay / 打开控制页").Pressed(() => {
+            if (overlay != null) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo($"http://localhost:{overlay.Port}/apex") { UseShellExecute = true });
+        }));
         menu.Add(new TextMenu.OnOff(Dialog.Clean("CNGOLDENLINK_CONNECT"), Settings.ConnectionEnabled).Change(value => {
             Settings.ConnectionEnabled = value; attempted = false; fault = null;
             if (!value) uploader?.Stop(); nextSample = 0;
@@ -85,6 +96,13 @@ public sealed class GoldenLinkModule : EverestModule
         orig(self, time);
         if (exiting) return;
         try {
+            if (overlay != null && (!Settings.OverlayEnabled || overlay.Port != Math.Clamp(Settings.OverlayPort, 1024, 65535))) {
+                overlay.Dispose(); overlay = null;
+            }
+            if (Settings.OverlayEnabled && overlay == null && overlayError == null) {
+                try { overlay = new OverlayServer(Settings.OverlayPort, Settings.ServiceBaseUrl, Path.Combine(Everest.PathGame, "CNGoldenLinkData")); }
+                catch (Exception ex) { overlayError = ex.GetType().Name; Logger.Log(LogLevel.Warn, "CNGoldenLink", "Overlay: " + overlayError); }
+            }
             if (forgetting is { IsCompleted: true }) {
                 fault = forgetting.IsFaulted ? "credential_delete_failed" : null; forgetting = null;
             }
@@ -104,8 +122,11 @@ public sealed class GoldenLinkModule : EverestModule
             var level = Engine.Scene as Level;
             if (level != null) noGolden.Observe(level.Session, level.Session.Deaths,
                 level.Session.GrabbedGolden || HoldingGolden(level) == true);
-            if (Environment.TickCount64 >= nextSample) {
-                Sample(level); nextSample = Environment.TickCount64 + Math.Clamp(Settings.UploadIntervalSeconds, 1, 30) * 1000;
+            bool uploadDue = Environment.TickCount64 >= nextSample;
+            if (uploadDue || (overlay != null && Environment.TickCount64 >= nextOverlaySample)) {
+                Sample(level, uploadDue);
+                nextOverlaySample = Environment.TickCount64 + 500;
+                if (uploadDue) nextSample = Environment.TickCount64 + Math.Clamp(Settings.UploadIntervalSeconds, 1, 30) * 1000;
             }
             if (Settings.ConnectionEnabled && uploader != null && _SaveData is GoldenLinkSaveData save) {
                 if (!ReferenceEquals(queuedSave, save)) {
@@ -121,7 +142,7 @@ public sealed class GoldenLinkModule : EverestModule
         var player = level.Tracker.GetEntity<Player>();
         return player == null ? null : !player.Dead && player.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true });
     }
-    private void Sample(Level? level) {
+    private void Sample(Level? level, bool publishRemote = true) {
         var sid = level?.Session.Area.SID; var side = level?.Session.Area.Mode.ToString();
         var live = new LiveObservation(sid, side, level?.Session.Level, level?.Paused,
             level?.Transitioning, level == null ? null : HoldingGolden(level), CctAdapter.Available, CctAdapter.TrackingPaused);
@@ -138,11 +159,13 @@ public sealed class GoldenLinkModule : EverestModule
                 save.LastTotalDeaths[key] = total.Value;
             }
             area = new(save.DatasetId, sid!, side!, save.NoGoldenBestDeaths.TryGetValue(key, out int best) ? best : null, TotalDeaths: total);
-            try { if (Settings.ConnectionEnabled) cct = CctAdapter.Capture(save.DatasetId, sid!, side!); }
+            try { if (Settings.ConnectionEnabled || overlay != null) cct = CctAdapter.Capture(save.DatasetId, sid!, side!); }
             catch (Exception ex) { error = ex is InvalidOperationException ? ex.Message : "cct_sampling_error"; }
         }
-        if (Settings.ConnectionEnabled) uploader?.Publish(new(live, cct, area, Environment.TickCount64, error));
-        if (writer != null) {
+        var captured = new SyncSnapshot(live, cct, area, Environment.TickCount64, error);
+        overlay?.Publish(captured, Settings.ServiceBaseUrl);
+        if (Settings.ConnectionEnabled && publishRemote) uploader?.Publish(captured);
+        if (writer != null && publishRemote) {
             var player = level?.Tracker.GetEntity<Player>();
             var observation = new Observation(sid, side, live.Room, Engine.Scene?.GetType().Name ?? "none",
                 live.Paused, live.Transitioning, level?.Completed, level == null ? null : player != null,
@@ -174,5 +197,6 @@ public sealed class GoldenLinkModule : EverestModule
     }
     private void Exiting() {
         exiting = true; noGolden.Invalidate(); uploader?.Stop(); writer?.Stop(); writer = null;
+        overlay?.Dispose(); overlay = null;
     }
 }

@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {normalize} from '../public/data.mjs';import {demoSnapshot} from '../public/demo.mjs';
+test('demo remains explicit and unknown counters are not replaced by zero',()=>{const d=demoSnapshot();d.area.noGoldenBestDeaths=null;d.cct.entryRate=NaN;const n=normalize(d);assert.equal(n.source,'demo');assert.equal(n.area.noGoldenBestDeaths,null);assert.equal(n.cct.entryRate,null);});
+test('normalizer rejects incompatible contracts and does not pass secret fields to themes',()=>{assert.throws(()=>normalize({}));const d=demoSnapshot();d.token='secret';d.catalog.token='secret';const n=normalize(d);assert.equal(n.token,undefined);assert.equal(n.catalog.token,undefined);});

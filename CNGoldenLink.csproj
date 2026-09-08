@@ -9,6 +9,7 @@
     <CctAssemblyPath Condition="'$(CctAssemblyPath)' == ''">$(CelestePath)/Mods/Cache/ConsistencyTracker.ConsistencyTracker.dll</CctAssemblyPath>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="overlay-preview/public/*" Exclude="overlay-preview/public/demo.mjs" LogicalName="OverlayAsset.%(Filename)%(Extension)" />
     <Compile Include="src/**/*.cs" />
     <Reference Include="Celeste"><HintPath>$(CelestePath)/Celeste.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="MMHOOK_Celeste"><HintPath>$(CelestePath)/MMHOOK_Celeste.dll</HintPath><Private>false</Private></Reference>
