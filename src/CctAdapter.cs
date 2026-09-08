@@ -2,7 +2,7 @@ using Celeste.Mod.ConsistencyTracker;
 
 namespace CNGoldenLink;
 
-/// <summary>Version-specific public API adapter, verified against installed CCT 2.10.2.
+/// <summary>Public API adapter compiled against the configured CCT dependency.
 /// Called only on the game thread. Returns copied DTOs; never passes live CCT objects to a worker.</summary>
 internal static class CctAdapter
 {
@@ -12,7 +12,6 @@ internal static class CctAdapter
     {
         var module = ConsistencyTrackerModule.Instance;
         if (module == null) return null;
-        if (module.Metadata.Version.ToString() != "2.10.2") throw new InvalidOperationException("cct_version_unverified");
         var stats = module.CurrentChapterStats;
         // The CCT data can outlive the Level. Do not attribute old data to a newly entered map.
         if (stats == null || stats.ChapterSID != sid || stats.ChapterUID != sid + "/" + side) return null;
@@ -44,7 +43,7 @@ internal static class CctAdapter
         int window = settings.LiveDataSelectedAttemptCount;
         if (window is not (5 or 10 or 20 or 100)) throw new InvalidOperationException("cct_window_unsupported");
         return new(dataset, sid, side, module.SelectedPathSegmentIndex,
-            new(new(module.Metadata.Version.ToString(), "0.1.0", stats.SessionStarted.ToString("O"),
+            new(new(module.Metadata.Version.ToString(), typeof(CctAdapter).Assembly.GetName().Version!.ToString(3), stats.SessionStarted.ToString("O"),
                 new(settings.TrackNegativeStreaks, window), new(stats.GoldenCollectedCount, stats.GoldenCollectedCountSession), route), rooms));
     }
     private static string? Empty(string? value) => string.IsNullOrEmpty(value) ? null : value;

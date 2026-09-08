@@ -1,12 +1,20 @@
-param([string]$CelestePath = (Join-Path $PSScriptRoot '../..'))
+param(
+    [string]$CelestePath = (Join-Path $PSScriptRoot '../..'),
+    [string]$CctAssemblyPath = (Join-Path $CelestePath 'Mods/Cache/ConsistencyTracker.ConsistencyTracker.dll')
+)
 $ErrorActionPreference = 'Stop'
 $repoPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-dotnet build (Join-Path $repoPath 'CNGoldenLink.csproj') -c Release "-p:CelestePath=$CelestePath" --nologo
+$projectPath = Join-Path $repoPath 'CNGoldenLink.csproj'
+$version = ([xml](Get-Content -LiteralPath $projectPath -Raw)).Project.PropertyGroup.Version
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Project Version must be major.minor.patch' }
+$manifest = Get-Content -LiteralPath (Join-Path $repoPath 'everest.yaml') -Raw
+if ($manifest -notmatch "(?m)^  Version: $([regex]::Escape($version))\s*$") { throw 'everest.yaml version must match project Version' }
+dotnet build $projectPath -c Release "-p:CelestePath=$CelestePath" "-p:CctAssemblyPath=$CctAssemblyPath" --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
 Add-Type -AssemblyName System.IO.Compression
 $outputPath = Join-Path $repoPath 'artifacts'
 New-Item -ItemType Directory -Force $outputPath | Out-Null
-$zipPath = Join-Path $outputPath 'CNGoldenLink-0.1.0.zip'
+$zipPath = Join-Path $outputPath "CNGoldenLink-$version.zip"
 $fileStream = [IO.File]::Open($zipPath, [IO.FileMode]::Create)
 $archive = [IO.Compression.ZipArchive]::new($fileStream, [IO.Compression.ZipArchiveMode]::Create)
 try {
