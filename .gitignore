@@ -1,0 +1,35 @@
+# Build outputs
+**/bin/
+**/obj/
+artifacts/
+dist/
+
+# Local IDE and configuration
+.vs/
+.idea/
+*.user
+*.suo
+Directory.Build.props.local
+*.local.props
+.env
+.env.*
+!.env.example
+
+# Game references and third-party binaries
+lib/
+references/
+*.dll
+*.pdb
+*.zip
+
+# Runtime data and credentials
+logs/
+*.log
+Saves/
+credentials/
+tokens/
+queue/
+
+# OS files
+.DS_Store
+Thumbs.db

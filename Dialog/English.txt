@@ -1,0 +1,17 @@
+CNGOLDENLINK_REMOTE_ONLY=Remote sync
+CNGOLDENLINK_SYNC_HINT=Sign in and upload data when enabled
+CNGOLDENLINK_CONNECT=Connect to CN Golden List
+CNGOLDENLINK_INTERVAL=Sync interval
+CNGOLDENLINK_REAUTHORIZE=Forget local login (then enable connection)
+CNGOLDENLINK_DIAGNOSTICS=Enable local diagnostics
+CNGOLDENLINK_SERVER_HINT=Server address: ServiceBaseUrl in mod settings file
+CNGOLDENLINK_STATUS_OFF=Disconnected
+CNGOLDENLINK_STATUS_CONNECTING=Connecting...
+CNGOLDENLINK_STATUS_AWAITING_BROWSER=Waiting for browser authorization...
+CNGOLDENLINK_STATUS_CONNECTED=Connected
+CNGOLDENLINK_STATUS_CONNECTED_WAITING_SNAPSHOT=Connected, waiting for game data
+CNGOLDENLINK_STATUS_RECONNECTING=Connection interrupted, retrying...
+CNGOLDENLINK_STATUS_AUTHORIZATION_REQUIRED=Authorization unavailable: check website permissions or forget login
+CNGOLDENLINK_STATUS_AUTHORIZATION_TIMEOUT=Authorization timed out: toggle connection to retry
+CNGOLDENLINK_STATUS_CONNECTION_REPLACED=Connected from another instance: toggle connection to retry
+CNGOLDENLINK_STATUS_ERROR=Connection / data status:

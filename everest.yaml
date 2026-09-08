@@ -1,0 +1,8 @@
+- Name: CNGoldenLink
+  Version: 0.1.0
+  DLL: bin/CNGoldenLink.dll
+  Dependencies:
+    - Name: Everest
+      Version: 1.6458.0
+    - Name: ConsistencyTracker
+      Version: 2.10.2
