@@ -55,6 +55,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests failed' }
           dotnet run --project sync-tests/Sync.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Sync tests failed' }
+          dotnet run --project overlay-tests/OverlayTests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Overlay tests failed' }
       - name: Build release package
         shell: pwsh
         run: |
