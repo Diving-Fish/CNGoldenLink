@@ -40,6 +40,28 @@ GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。
 
 发布新版：修改项目和清单中的 Mod 版本，提交到 main，再推送对应标签。ZIP 文件名和程序集版本自动跟随项目版本，发布包不包含下载的依赖 DLL。已存在的 Release 不会被覆盖。
 
+### 阿里云 CDN 发布配置
+
+标签发布会先上传 OSS，再创建含 CDN 下载链接的 GitHub Release；OSS 上传失败时不创建 Release。手动构建不上传 OSS。
+
+在 GitHub 仓库 Settings → Secrets and variables → Actions 中配置两个 Secrets：
+
+- `OSS_ACCESS_KEY_ID`：阿里云 AccessKeyId。
+- `OSS_ACCESS_KEY_SECRET`：阿里云 AccessKeySecret。
+
+凭证仅通过上传步骤的环境变量读取，不写入脚本或安装包。请使用专用 RAM 身份，并仅授予 `acs:oss:*:*:aliyun-static-diving-fish/cngist/*` 上的 `oss:PutObject` 和 `oss:GetObject` 权限（后者用于重试时 HEAD 校验），无需列桶或删除权限。
+
+上传区域为 `cn-shanghai`，桶为 `aliyun-static-diving-fish`，对象路径为 `cngist/CNGoldenLink-<版本>.zip`。玩家下载地址为 `https://aliyun-static.diving-fish.com/cngist/CNGoldenLink-<版本>.zip`。需在阿里云侧提前配置此域名的 CDN 回源与 HTTPS；私有桶需要 CDN 授权回源。脚本不修改桶 ACL 或 CDN 配置。
+
+版本文件禁止覆盖，缓存时间为一年。若上传成功但 GitHub 发布失败，重试仅在已有对象的 SHA-256 元数据和大小与本地包一致时继续；内容不同需使用新版本。请限制发布标签和 workflow 的修改权限，能修改并运行发布代码的人员可能读取上传凭证。
+
+本地也可在安全配置上述环境变量后运行（不要把真实密钥写进命令或提交到仓库）：
+
+```powershell
+python -m pip install -r scripts/requirements-upload.txt
+python scripts/upload-oss.py artifacts/CNGoldenLink-0.1.0.zip
+```
+
 无需安装游戏的本地构建（需要 Python 3）：
 
 ```powershell
