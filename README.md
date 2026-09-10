@@ -1,8 +1,6 @@
 # CNGoldenLink
 
-OBS Overlay 包含 APEX 与 ORBIT 两套主题，由 Mod 本地托管；独立视觉预览和前端说明见 [overlay-preview](overlay-preview/README.md)。
-
-CN 金榜的 Celeste 联动 Mod，版本 0.1。
+CN 金榜的 Celeste 联动 Mod，版本 0.2.0。
 
 在 Mod 菜单开启连接后，通过浏览器登录 CN 金榜并授权，默认每 5 秒同步当前状态、CCT 统计和地图死亡数据。同步间隔可在菜单调整，服务地址可通过设置文件的 `ServiceBaseUrl` 修改。
 
@@ -14,13 +12,33 @@ CN 金榜的 Celeste 联动 Mod，版本 0.1。
 
 ## OBS Overlay
 
-在 Mod 菜单开启 `OBS Overlay`，点“打开控制页”，或访问 `http://localhost:32272/apex`、`http://localhost:32272/orbit`。端口可用设置文件中的 `OverlayPort` 修改；占用时服务不会启动，可改端口后重开开关。Overlay 开关独立于上传开关，获取金榜地图资料需要先完成现有金榜授权。
+自 0.2.0 起内置 OBS Overlay。提供 APEX（冰蓝转播）和 ORBIT（铜金圆弧）两套主题，由 Mod 在本机托管，页面和视觉资源随安装包提供，运行时无需 Node.js。
 
-OBS 添加浏览器源：`http://localhost:32272/apex?obs=1`（或 `orbit`），宽高 1920×1080。将游戏源放在下方，位置 X=24、Y=24，尺寸 1600×900。页面、字体和 SVG 均在本地，运行时不需要 Node.js。
+### 接入 OBS
 
-控制页的挑战下拉框按服务地址和地图 ID 记忆选择，同步影响 OBS；只有一个挑战时自动选中。设置保存在 `CNGoldenLinkData/overlay-selections.json`。未配对或服务不可用时仍显示本地 CCT 数据，不猜测金榜挑战或 Tier。金榜资料在切图时查询，正常每 5 分钟刷新、失败后每 30 秒重试；本地快照每 500ms 刷新，与远端上传间隔独立。
+1. 在 Mod 菜单开启 `OBS Overlay`，点击 `Open Overlay / 打开控制页`。默认控制页为 `http://localhost:32272/apex`，ORBIT 主题使用 `http://localhost:32272/orbit`。
+2. 在 OBS 添加浏览器源，URL 填写 `http://localhost:32272/apex?obs=1` 或 `http://localhost:32272/orbit?obs=1`，宽度设为 **1920**、高度设为 **1080**。透明页隐藏控制界面，为游戏画面留出透明区域。
+3. 将游戏源放在浏览器源下方，位置设为 **X=24、Y=24**，尺寸设为 **1600×900**。
+4. 进入地图后，在普通浏览器的控制页选择当前挑战，选择会自动保存并同步到 OBS；只有一个挑战时自动选中。
 
-需部署 CNGist 的 `/api/tracker/overlay-context` 接口，无新增迁移。带金通过率、进入率按当前 CCT 路线、分房间带金死亡及带金通关次数推算，沿用网站统计模型；合并房间合并统计、重复节点只计首次、忽略房间不参与路线推算。没有路线或样本时显示未知。游戏内最终效果仍需进入地图验证。
+Overlay 开关独立于金榜上传开关，关闭上传仍可显示本地 CCT 数据。金榜地图、挑战和 Tier 需要先通过现有连接流程完成授权，并由服务端提供 `/api/tracker/overlay-context` 接口。
+
+### 显示内容与数据
+
+- 当前地图、地图包、所选挑战及金榜 Tier，以及练习、带金、暂停和断线状态。
+- 当前房间、路线进度、当前 CP 附近的三个节点、连续通过次数及最佳纪录、当前房间最近 20 次尝试结果。
+- 当前房间的带金成功率和通过／尝试次数、累计及本次进入率、累计及本次带金死亡次数。
+- 无金完整通关最少死亡纪录和地图累计死亡次数。
+
+带金成功率和进入率按 CCT 路线、分房间带金死亡及带金通关次数推算；合并房间合并统计，重复节点只计首次，忽略房间不参与路线推算。缺少路线或有效样本的指标显示 `—`。
+
+本地快照和页面读取每 500ms 刷新，与远端上传间隔独立。金榜资料在切图时查询，成功后每 5 分钟刷新，失败后每 30 秒重试；已有资料时暂用缓存。未授权、地图未配对或金榜服务不可用时仍可显示本地统计，不会编造挑战或 Tier。未配对地图可到金榜账户页申请配对。本地接口断线时保留最后快照并标记断线，不回退为演示数据。
+
+### 设置与预览
+
+服务仅监听本机，默认端口为 `32272`，可在 Mod 设置文件中通过 `OverlayPort` 修改（有效范围 `1024–65535`）。端口被占用时服务无法启动，修改后重新关闭、开启 Overlay，并同步修改浏览器和 OBS 中的 URL。挑战选择按服务地址和地图 ID 保存在游戏目录的 `CNGoldenLinkData/overlay-selections.json`。
+
+另提供[独立视觉预览及前端说明](overlay-preview/README.md)：使用 Node.js 20 或更新版本，在 `overlay-preview` 目录运行 `npm start`，访问 `http://localhost:32271/apex` 或 `http://localhost:32271/orbit`。此预览使用虚构演示数据；OBS 接入真实游戏数据时使用上述 Mod 的 `32272` 端口。
 
 ## 构建
 
@@ -39,18 +57,20 @@ dotnet build -c Release
 ./scripts/package.ps1 -CelestePath "E:/SteamLibrary/steamapps/common/Celeste"
 ```
 
-生成的 `artifacts/CNGoldenLink-0.1.0.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
+生成的 `artifacts/CNGoldenLink-0.2.0.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
 
 运行测试：
 
 ```powershell
 dotnet run --project tests/Diagnostics.Tests.csproj -c Release
 dotnet run --project sync-tests/Sync.Tests.csproj -c Release
+dotnet run --project overlay-tests/OverlayTests.csproj -c Release
+node --test overlay-preview/test/data.test.mjs
 ```
 
 ## 自动发布
 
-GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.1.0` 或 `0.1.0`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
+GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.2.0` 或 `0.2.0`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
 
 构建时自动按 `everest.yaml` 的依赖版本下载 Everest 官方 stable Release 的 `lib-stripped.zip` 和 CCT 官方对应 Release 的安装包。更新 CCT 时修改清单中的依赖版本即可；不自动追踪 latest。新版本 API 不兼容会导致编译失败，行为兼容性仍需游戏内验证。
 

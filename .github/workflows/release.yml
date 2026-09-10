@@ -49,6 +49,8 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
+          python -B -m unittest discover -s scripts -p 'test_upload_oss.py'
+          if ($LASTEXITCODE -ne 0) { throw 'OSS upload tests failed' }
           dotnet run --project tests/Diagnostics.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests failed' }
           dotnet run --project sync-tests/Sync.Tests.csproj -c Release
@@ -74,14 +76,23 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install OSS upload SDK
+        run: python -m pip install -r scripts/requirements-upload.txt
       - uses: actions/download-artifact@v4
         with:
           name: release-package
           path: release
-      - name: Publish GitHub Release
+      - name: Check release does not already exist
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -89,9 +100,25 @@ jobs:
           RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          package="release/CNGoldenLink-${RELEASE_VERSION}.zip"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo 'Release already exists; refusing to replace published files.' >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" "$package" --verify-tag --title "CNGoldenLink $RELEASE_VERSION" --generate-notes
+      - name: Upload package to Aliyun OSS
+        id: cdn
+        env:
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: python scripts/upload-oss.py "release/CNGoldenLink-${RELEASE_VERSION}.zip"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          CDN_URL: ${{ steps.cdn.outputs.url }}
+        run: |
+          set -euo pipefail
+          printf '国内 CDN 下载：[CNGoldenLink %s](%s)\n' "$RELEASE_VERSION" "$CDN_URL" > release-notes.md
+          gh release create "$RELEASE_TAG" "release/CNGoldenLink-${RELEASE_VERSION}.zip" --verify-tag --title "CNGoldenLink $RELEASE_VERSION" --generate-notes --notes-file release-notes.md
