@@ -1,6 +1,6 @@
 # CNGoldenLink
 
-CN 金榜的 Celeste 联动 Mod，版本 0.2.0。
+CN 金榜的 Celeste 联动 Mod，版本 0.2.1。
 
 在 Mod 菜单开启连接后，通过浏览器登录 CN 金榜并授权，默认每 5 秒同步当前状态、CCT 统计和地图死亡数据。同步间隔可在菜单调整，服务地址可通过设置文件的 `ServiceBaseUrl` 修改。
 
@@ -57,7 +57,7 @@ dotnet build -c Release
 ./scripts/package.ps1 -CelestePath "E:/SteamLibrary/steamapps/common/Celeste"
 ```
 
-生成的 `artifacts/CNGoldenLink-0.2.0.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
+生成的 `artifacts/CNGoldenLink-0.2.1.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
 
 运行测试：
 
@@ -70,7 +70,7 @@ node --test overlay-preview/test/data.test.mjs
 
 ## 自动发布
 
-GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.2.0` 或 `0.2.0`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
+GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.2.1` 或 `0.2.1`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
 
 构建时自动按 `everest.yaml` 的依赖版本下载 Everest 官方 stable Release 的 `lib-stripped.zip` 和 CCT 官方对应 Release 的安装包。更新 CCT 时修改清单中的依赖版本即可；不自动追踪 latest。新版本 API 不兼容会导致编译失败，行为兼容性仍需游戏内验证。
 
