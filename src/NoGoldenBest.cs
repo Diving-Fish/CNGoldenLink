@@ -38,19 +38,20 @@ public sealed class NoGoldenAttempt
 
 public sealed record AreaStatistics(string DatasetId, string Sid, string Side,
     int? NoGoldenBestDeaths, string Source = "observed_no_native_golden_clear_v1",
-    string PracticeDetection = "none", int? TotalDeaths = null);
+    string PracticeDetection = "none", int? TotalDeaths = null, bool? Completed = null);
 
 public static class SavedAreaStatistics
 {
     public static IEnumerable<AreaStatistics> Read(string dataset, IReadOnlyDictionary<string, int> bests,
-        IReadOnlyDictionary<string, int> totals) {
-        foreach (var pair in bests) {
-            int split = pair.Key.LastIndexOf('|');
-            if (split <= 0 || pair.Value < 0) continue;
-            var side = pair.Key[(split + 1)..];
+        IReadOnlyDictionary<string, int> totals, IReadOnlyDictionary<string, bool>? completed = null) {
+        foreach (var key in bests.Keys.Concat(totals.Keys).Concat(completed?.Keys ?? []).Distinct()) {
+            int split = key.LastIndexOf('|');
+            if (split <= 0) continue;
+            var side = key[(split + 1)..];
             if (side is not ("Normal" or "BSide" or "CSide")) continue;
-            yield return new(dataset, pair.Key[..split], side, pair.Value,
-                TotalDeaths: totals.TryGetValue(pair.Key, out int total) && total >= 0 ? total : null);
+            yield return new(dataset, key[..split], side, bests.TryGetValue(key, out int best) && best >= 0 ? best : null,
+                TotalDeaths: totals.TryGetValue(key, out int total) && total >= 0 ? total : null,
+                Completed: completed != null && completed.TryGetValue(key, out bool clear) ? clear : null);
         }
     }
 }

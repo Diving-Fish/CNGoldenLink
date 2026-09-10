@@ -22,7 +22,20 @@ internal static class OverlayProjection
         var total = nodes.Select(n => Deaths(n.Members, false)).ToArray();
         var session = nodes.Select(n => Deaths(n.Members, true)).ToArray();
         long wins = state?.Metadata.Chapter.GoldenCollectedCount ?? 0, sessionWins = state?.Metadata.Chapter.GoldenCollectedCountSession ?? 0;
+        string? Best(long[] deaths, long collected) {
+            if (state == null) return null;
+            if (collected > 0) return "通关";
+            int best = Array.FindLastIndex(deaths, d => d > 0);
+            if (best < 0) return null;
+            return nodes[best].Node.CustomRoomName ?? nodes[best].Node.RoomKey;
+        }
         long entries = index < 0 ? 0 : total.Skip(index).Sum() + wins;
+        int? BestRoomIndex(long[] deaths, long collected) {
+            if (state == null || route == null) return null;
+            if (collected > 0) return nodes.Count(n => !n.Node.IsNonGameplayRoom);
+            int best = Array.FindLastIndex(deaths, d => d > 0);
+            return best < 0 ? null : nodes.Take(best + 1).Count(n => !n.Node.IsNonGameplayRoom);
+        }
         long sessionEntries = index < 0 ? 0 : session.Skip(index).Sum() + sessionWins;
         long passes = index < 0 ? 0 : entries - total[index];
         double? Ratio(long n, long d) => d > 0 ? 100d * n / d : null;
@@ -38,6 +51,8 @@ internal static class OverlayProjection
                 checkpoints = cps.Select(c => new { name = c.Name ?? c.Abbreviation ?? c.CheckpointKey, shortName = c.Abbreviation,
                     rooms = nodes.Count(n => n.Node.CheckpointKey == c.CheckpointKey && !n.Node.IsNonGameplayRoom) }).ToArray(),
                 streak = room?.SuccessStreak, bestStreak = room?.SuccessStreakBest,
+                goldenPb = Best(total, wins), sessionGoldenPb = Best(session, sessionWins),
+                goldenPbRoomIndex = BestRoomIndex(total, wins), sessionGoldenPbRoomIndex = BestRoomIndex(session, sessionWins),
                 successRate = index < 0 ? null : Ratio(passes, entries), successes = index < 0 ? (long?)null : passes, attempts = index < 0 ? (long?)null : entries,
                 entryRate = index < 0 ? null : Ratio(entries, total.Sum() + wins),
                 sessionEntryRate = index < 0 ? null : Ratio(sessionEntries, session.Sum() + sessionWins),

@@ -17,6 +17,11 @@ internal sealed class RemoteUploader
     private string status = "connecting";
     private string? token, connectionId, activeScope;
     private long sequence;
+    private readonly Queue<(LiveObservation Observation, long CapturedAt)> liveChanges = new();
+    private LiveObservation? currentLive;
+    private long liveCapturedAt;
+    private PresenceBatch? inFlightPresence;
+    private sealed record PresenceBatch(long Sequence, LiveObservation Observation, LiveObservation[] Transitions, long CapturedAt);
     private JsonElement? cursor, acknowledgedState;
     private readonly object pendingGate = new();
     private readonly Dictionary<string, SyncSnapshot> pending = new();
@@ -44,6 +49,7 @@ internal sealed class RemoteUploader
         return new Uri(uri.AbsoluteUri.TrimEnd('/') + "/");
     }
     public void Publish(SyncSnapshot snapshot) {
+        ObserveLive(snapshot.Live);
         Volatile.Write(ref latest, snapshot);
         if (snapshot.Area == null && snapshot.Cct == null) return;
         var key = snapshot.Area is { } area ? area.DatasetId + "|" + area.Sid + "|" + area.Side : "";
@@ -54,6 +60,39 @@ internal sealed class RemoteUploader
             }
             pending[key] = snapshot;
         }
+    }
+    // Called on the game thread every frame; network cadence is independent of room sampling.
+    public void ObserveLive(LiveObservation observation) {
+        lock (pendingGate) {
+            var previous = currentLive;
+            // Player may be temporarily absent during a room transition; that is not a golden loss.
+            if (observation.Sid != null && observation.HoldingGolden == null && previous?.Sid == observation.Sid
+                && previous.Side == observation.Side && previous.DatasetId == observation.DatasetId)
+                observation = observation with { HoldingGolden = previous.HoldingGolden };
+            liveCapturedAt = Environment.TickCount64;
+            currentLive = observation;
+            if (previous != null && previous.DatasetId == observation.DatasetId && previous.Sid == observation.Sid
+                && previous.Side == observation.Side && previous.Room == observation.Room
+                && previous.HoldingGolden == observation.HoldingGolden) return;
+            if (liveChanges.Count >= 256) { liveChanges.Dequeue(); Interlocked.Increment(ref droppedScopes); }
+            liveChanges.Enqueue((observation, liveCapturedAt));
+        }
+    }
+    private async Task SyncPresence(CancellationToken cancellation) {
+        if (inFlightPresence != null && Environment.TickCount64 - inFlightPresence.CapturedAt > 60000) inFlightPresence = null;
+        if (inFlightPresence == null) {
+            lock (pendingGate) {
+                if (currentLive == null || Environment.TickCount64 - liveCapturedAt > 10000) return;
+                var changes = liveChanges.Where(e => Environment.TickCount64 - e.CapturedAt <= 60000).Select(e => e.Observation).ToArray();
+                liveChanges.Clear();
+                inFlightPresence = new(++sequence, currentLive, changes, liveCapturedAt);
+            }
+        }
+        var batch = inFlightPresence;
+        await Send("api/tracker/presence", new { action = "snapshot", connectionId,
+            sequence = batch.Sequence, observation = batch.Observation, transitions = batch.Transitions }, cancellation);
+        // Keep the exact sequence/body until ACK, including when the server committed but the reply was lost.
+        inFlightPresence = null;
     }
     public void Stop() => stop.Cancel();
     public bool QueueSavedArea(AreaStatistics area) {
@@ -85,15 +124,14 @@ internal sealed class RemoteUploader
                     var snapshot = Volatile.Read(ref latest);
                     // Never replay a stale scene as live presence after a stall or reconnect.
                     if (snapshot != null && Environment.TickCount64 - snapshot.CapturedAt <= Math.Max(10000, interval * 2000)) {
-                        await Send("api/tracker/presence", new { action = "snapshot", connectionId,
-                            sequence = ++sequence, observation = snapshot.Live }, stop.Token);
+                        await SyncPresence(stop.Token);
                         string? dataError = snapshot.SamplingError;
                         KeyValuePair<string, SyncSnapshot>[] batch;
                         lock (pendingGate) batch = pending.Take(4).ToArray();
                         foreach (var item in batch) {
                             try {
                                 if (item.Value.Area is { } a) {
-                                    var body = new { a.DatasetId, a.Sid, a.Side, a.NoGoldenBestDeaths, a.TotalDeaths, a.Source, a.PracticeDetection };
+                                    var body = new { a.DatasetId, a.Sid, a.Side, a.NoGoldenBestDeaths, a.TotalDeaths, a.Completed, a.Source, a.PracticeDetection };
                                     string encoded = SyncJson.Serialize(body);
                                     if (encoded != lastArea) { await Send("api/tracker/area-stats", body, stop.Token); lastArea = encoded; }
                                 }

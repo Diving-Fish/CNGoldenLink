@@ -8,6 +8,8 @@ export function demoSnapshot() {
       checkpoints:[{name:'初光',short:'DAWN',rooms:4},{name:'折射',short:'REFRACT',rooms:5},{name:'余晖',short:'AFTERGLOW',rooms:4}],
       streak:1,bestStreak:4,successRate:51.61,successes:48,attempts:93,entryRate:69.92,
       sessionEntryRate:57.14,goldenDeaths:94,sessionGoldenDeaths:5,
+      goldenPb:'Room-11',sessionGoldenPb:'Room-7',
+      goldenPbRoomIndex:11,sessionGoldenPbRoomIndex:7,
       recent:[true,true,false,true,false,false,true,true,true,false,true,false,true,true,false,true,true,true,false,true]},
     area:{noGoldenBestDeaths:12,totalDeaths:2401}
   };

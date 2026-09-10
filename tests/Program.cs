@@ -21,6 +21,10 @@ try
     var savedBest = new Dictionary<string, int> { ["Test/Map|Normal"] = 8 };
     var savedTotal = new Dictionary<string, int> { ["Test/Map|Normal"] = 100 };
     var restored = SavedAreaStatistics.Read("dataset", savedBest, savedTotal).Single();
+    var completionOnly = SavedAreaStatistics.Read("dataset", new Dictionary<string, int>(), new Dictionary<string, int>(),
+        new Dictionary<string, bool> { ["Cleared/Map|Normal"] = true, ["New/Map|Normal"] = false }).ToArray();
+    Check(completionOnly.Length == 2 && completionOnly[0].Completed == true && completionOnly[1].Completed == false
+        && completionOnly.All(a => a.NoGoldenBestDeaths == null), "Completion-only saves replay true and false without fabricating PB");
     Check(restored.Sid == "Test/Map" && restored.NoGoldenBestDeaths == 8 && restored.TotalDeaths == 100,
         "Offline records can be queued without revisiting their map");
     attempt.Start(identity, true, false, 0, false);

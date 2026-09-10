@@ -20,6 +20,7 @@ public sealed class GoldenLinkSaveData : EverestModuleSaveData
     public string DatasetId { get; set; } = Guid.NewGuid().ToString();
     public Dictionary<string, int> NoGoldenBestDeaths { get; set; } = new();
     public Dictionary<string, int> LastTotalDeaths { get; set; } = new();
+    public Dictionary<string, bool> CompletedAreas { get; set; } = new();
 }
 
 public sealed class GoldenLinkModule : EverestModule
@@ -120,6 +121,7 @@ public sealed class GoldenLinkModule : EverestModule
                 writer = new DiagnosticWriter(Path.Combine(Everest.PathGame, "CNGoldenLinkData", "logs"));
             if (!Settings.DiagnosticsEnabled && writer != null) { writer.Stop(); writer = null; }
             var level = Engine.Scene as Level;
+            if (Settings.ConnectionEnabled) uploader?.ObserveLive(ReadLive(level));
             if (level != null) noGolden.Observe(level.Session, level.Session.Deaths,
                 level.Session.GrabbedGolden || HoldingGolden(level) == true);
             bool uploadDue = Environment.TickCount64 >= nextSample;
@@ -131,7 +133,7 @@ public sealed class GoldenLinkModule : EverestModule
             if (Settings.ConnectionEnabled && uploader != null && _SaveData is GoldenLinkSaveData save) {
                 if (!ReferenceEquals(queuedSave, save)) {
                     queuedSave = save;
-                    savedAreas = new Queue<AreaStatistics>(SavedAreaStatistics.Read(save.DatasetId, save.NoGoldenBestDeaths, save.LastTotalDeaths));
+                    savedAreas = new Queue<AreaStatistics>(SavedAreaStatistics.Read(save.DatasetId, save.NoGoldenBestDeaths, save.LastTotalDeaths, save.CompletedAreas));
                 }
                 if (savedAreas.TryPeek(out var saved) && uploader.QueueSavedArea(saved)) savedAreas.Dequeue();
             }
@@ -142,23 +144,30 @@ public sealed class GoldenLinkModule : EverestModule
         var player = level.Tracker.GetEntity<Player>();
         return player == null ? null : !player.Dead && player.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true });
     }
-    private void Sample(Level? level, bool publishRemote = true) {
+    private LiveObservation ReadLive(Level? level) => new(level?.Session.Area.SID, level?.Session.Area.Mode.ToString(),
+        level?.Session.Level, level?.Paused, level?.Transitioning, level == null ? null : HoldingGolden(level),
+        CctAdapter.Available, CctAdapter.TrackingPaused, (_SaveData as GoldenLinkSaveData)?.DatasetId);
+    private void Sample(Level? level, bool publishRemote = true, bool completedNow = false) {
         var sid = level?.Session.Area.SID; var side = level?.Session.Area.Mode.ToString();
-        var live = new LiveObservation(sid, side, level?.Session.Level, level?.Paused,
-            level?.Transitioning, level == null ? null : HoldingGolden(level), CctAdapter.Available, CctAdapter.TrackingPaused);
+        var live = ReadLive(level);
         CctCapture? cct = null; AreaStatistics? area = null; string? error = null;
         if (level != null && _SaveData is GoldenLinkSaveData save) {
             var key = sid + "|" + side;
-            var total = Celeste.SaveData.Instance?.GetAreaStatsFor(level.Session.Area)?.Modes[(int)level.Session.Area.Mode].Deaths;
+            var mode = Celeste.SaveData.Instance?.GetAreaStatsFor(level.Session.Area)?.Modes[(int)level.Session.Area.Mode];
+            var total = mode?.Deaths;
             if (total != null) {
                 // A restored/reset save must not try to lower the server's cumulative high-water mark.
                 if (save.LastTotalDeaths.TryGetValue(key, out int last) && total < last) {
-                    save.DatasetId = Guid.NewGuid().ToString(); save.NoGoldenBestDeaths.Clear(); save.LastTotalDeaths.Clear();
+                    save.DatasetId = Guid.NewGuid().ToString(); save.NoGoldenBestDeaths.Clear(); save.LastTotalDeaths.Clear(); save.CompletedAreas.Clear();
                     noGolden.Invalidate();
                 }
                 save.LastTotalDeaths[key] = total.Value;
             }
-            area = new(save.DatasetId, sid!, side!, save.NoGoldenBestDeaths.TryGetValue(key, out int best) ? best : null, TotalDeaths: total);
+            bool? completed = completedNow ? true : mode?.Completed;
+            if (completed != null) save.CompletedAreas[key] = completed.Value || save.CompletedAreas.GetValueOrDefault(key);
+            area = new(save.DatasetId, sid!, side!, save.NoGoldenBestDeaths.TryGetValue(key, out int best) ? best : null,
+                TotalDeaths: total, Completed: save.CompletedAreas.TryGetValue(key, out bool clear) ? clear : null);
+            live = live with { DatasetId = save.DatasetId };
             try { if (Settings.ConnectionEnabled || overlay != null) cct = CctAdapter.Capture(save.DatasetId, sid!, side!); }
             catch (Exception ex) { error = ex is InvalidOperationException ? ex.Message : "cct_sampling_error"; }
         }
@@ -188,7 +197,7 @@ public sealed class GoldenLinkModule : EverestModule
                 var key = level.Session.Area.SID + "|" + level.Session.Area.Mode;
                 if (!save.NoGoldenBestDeaths.TryGetValue(key, out var old) || deaths < old) save.NoGoldenBestDeaths[key] = deaths.Value;
             }
-            Sample(level);
+            Sample(level, completedNow: true);
         } catch (Exception ex) { fault = "completion_error:" + ex.GetType().Name; }
     }
     private void StrawberryPlayer(On.Celeste.Strawberry.orig_OnPlayer orig, Strawberry self, Player player) {

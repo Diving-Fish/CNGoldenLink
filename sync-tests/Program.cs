@@ -16,8 +16,8 @@ var state = new CctState(new("2.10.2", "0.2.0", "session", new(true, 20), new(1,
         "Test/Map", "Pack", "Map", "A-Side", new[] { new RouteCheckpoint("cp-0", "开始", "ST") })),
     new[] { new CctRoom("房间😀", new[] { true, false }, -1, 12, 3, 1, 0) });
 var dataset = Guid.NewGuid().ToString();
-SyncSnapshot Snapshot(CctState s) => new(new("Test/Map", "Normal", "房间😀", false, false, false, true, false),
-    new(dataset, "Test/Map", "Normal", 0, s), new(dataset, "Test/Map", "Normal", null, TotalDeaths: 20), Environment.TickCount64);
+SyncSnapshot Snapshot(CctState s) => new(new("Test/Map", "Normal", "房间😀", false, false, false, true, false, dataset),
+    new(dataset, "Test/Map", "Normal", 0, s), new(dataset, "Test/Map", "Normal", null, TotalDeaths: 20, Completed: true), Environment.TickCount64);
 var fixture = new { state, hash = SyncJson.Hash(SyncJson.Element(state)), canonical = SyncJson.Canonical(SyncJson.Element(state)) };
 Check(fixture.hash == "b8498dfec05dace96631d58ea92989f86a43ce8f218f3996f53113c8365584e0", "frozen TypeScript cross-language hash vector");
 if (args.Length > 0) await File.WriteAllTextAsync(args[0], SyncJson.Serialize(fixture));
@@ -65,6 +65,21 @@ int mutations = handler.Changes;
 uploader.Publish(Snapshot(changed)); await Task.Delay(1200);
 Check(handler.Changes == mutations, "unchanged data sends no mutation");
 Check(handler.AreaWrites == 1, "unchanged area counters not reuploaded");
+Check(handler.LastArea.GetProperty("completed").GetBoolean(), "native completion flag uploaded");
+var at = Snapshot(state).Live with { HoldingGolden = true };
+handler.LosePresenceAck = true;
+uploader.ObserveLive(at with { Room = "a" });
+uploader.ObserveLive(at with { Room = "b" });
+uploader.ObserveLive(at with { Room = "c" });
+uploader.ObserveLive(at with { Room = "c", HoldingGolden = false });
+await Until(() => handler.LostPresenceBody != null, "rapid room batch submitted");
+uploader.ObserveLive(at with { Room = "d" });
+await Until(() => handler.PresenceRetried, "identical batch retry after lost ACK");
+var lost = JsonDocument.Parse(handler.LostPresenceBody!).RootElement;
+Check(lost.GetProperty("transitions").EnumerateArray().Select(x => x.GetProperty("room").GetString()).SequenceEqual(new[] { "a", "b", "c", "c" }), "all rapid transitions remain ordered");
+Check(!lost.GetProperty("observation").GetProperty("holdingGolden").GetBoolean(), "final snapshot preserves death");
+Check(lost.GetProperty("observation").GetProperty("datasetId").GetString() == dataset, "presence carries dataset identity");
+await Until(() => handler.LastPresence.ValueKind == JsonValueKind.Object && handler.LastPresence.GetProperty("observation").GetProperty("room").GetString() == "d", "changes during retry preserved for next batch");
 
 // Lost ACK after commit: next cycle reads the committed cursor, without applying data twice.
 handler.LoseNextAck = true;
@@ -94,6 +109,9 @@ sealed class FakeServer : HttpMessageHandler
     public Action<JsonElement>? OnToken;
     public volatile int Baselines, Changes, StateReads, AreaWrites, Stops, Presences;
     public volatile bool LoseNextAck, RejectConfig;
+    public volatile bool LosePresenceAck, PresenceRetried;
+    public string? LostPresenceBody;
+    public JsonElement LastArea, LastPresence;
     public JsonElement LastPatch;
     private JsonElement? state, cursor;
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellation) {
@@ -109,10 +127,15 @@ sealed class FakeServer : HttpMessageHandler
                 break;
             case "/api/tracker/presence":
                 Presences++;
+                if (body.GetProperty("action").GetString() == "snapshot") {
+                    LastPresence = body;
+                    if (LosePresenceAck) { LosePresenceAck = false; LostPresenceBody = body.GetRawText(); throw new HttpRequestException("lost presence ACK"); }
+                    if (LostPresenceBody == body.GetRawText()) PresenceRetried = true;
+                }
                 if (body.GetProperty("action").GetString() == "start") result = new { ok = true, connectionId = Guid.NewGuid().ToString() };
                 if (body.GetProperty("action").GetString() == "stop") Stops++;
                 break;
-            case "/api/tracker/area-stats": AreaWrites++; break;
+            case "/api/tracker/area-stats": LastArea = body; AreaWrites++; break;
             case "/api/tracker/cct/state":
                 StateReads++;
                 result = cursor == null ? new { ok = true, current = (object?)null } : new { ok = true, current = (object?)new {

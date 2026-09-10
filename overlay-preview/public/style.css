@@ -1443,3 +1443,11 @@ html.obs-root {
 .live-controls select {font:inherit;color:#edf6ff;background:#243143;border:1px solid #62758c;border-radius:5px;padding:9px;min-width:240px}
 .live-controls>span {color:#a3b5c8;font-size:14px}
 [hidden] {display:none!important}
+.pb-record {margin:12px 0 14px}
+.pb-record-label {display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:20px;font-weight:600}
+.pb-record-label small {font:500 18px var(--number-face);font-variant-numeric:tabular-nums;color:var(--muted)}
+.pb-record progress {display:block;appearance:none;width:100%;height:7px;border:0;border-radius:4px;overflow:hidden;background:var(--line);color:var(--accent)}
+.pb-record progress::-webkit-progress-bar {background:var(--line);border-radius:4px}
+.pb-record progress::-webkit-progress-value {background:var(--accent);border-radius:4px}
+.pb-record progress::-moz-progress-bar {background:var(--accent);border-radius:4px}
+.pb-record.session progress {opacity:.65}

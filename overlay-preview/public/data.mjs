@@ -11,6 +11,8 @@ export function normalize(raw) {
       challenge:text(raw.catalog?.challenge),tier:text(raw.catalog?.tier),verified:raw.catalog?.verified === true},
     live:{room:text(raw.live?.room),holdingGolden:raw.live?.holdingGolden === true,paused:raw.live?.paused === true},
     cct:{...Object.fromEntries(['roomIndex','roomCount','checkpointIndex','streak','bestStreak','successRate','successes','attempts','entryRate','sessionEntryRate','goldenDeaths','sessionGoldenDeaths'].map(k=>[k,number(raw.cct?.[k])])),
+      goldenPb:text(raw.cct?.goldenPb),sessionGoldenPb:text(raw.cct?.sessionGoldenPb),
+      goldenPbRoomIndex:number(raw.cct?.goldenPbRoomIndex),sessionGoldenPbRoomIndex:number(raw.cct?.sessionGoldenPbRoomIndex),
       checkpoints:Array.isArray(raw.cct?.checkpoints)?raw.cct.checkpoints.slice(0,2000).map(cp=>({name:text(cp.name),short:text(cp.short),rooms:number(cp.rooms)})):[],
       recent:Array.isArray(raw.cct?.recent)?raw.cct.recent.slice(-20).filter(v=>typeof v==='boolean'):[]},
     area:{noGoldenBestDeaths:number(raw.area?.noGoldenBestDeaths),totalDeaths:number(raw.area?.totalDeaths)}

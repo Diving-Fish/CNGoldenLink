@@ -17,6 +17,27 @@ var p = SyncJson.Element(OverlayProjection.Build(Snapshot(), new {}, [], null, n
 Check(p.GetProperty("cct").GetProperty("roomCount").GetInt32() == 2, "grouped/repeated rooms count once");
 Check(p.GetProperty("cct").GetProperty("successRate").GetDouble() == 50, "golden rate uses downstream deaths and wins");
 Check(p.GetProperty("cct").GetProperty("checkpointIndex").GetInt32() == 1, "grouped member resolves checkpoint");
+Check(p.GetProperty("cct").GetProperty("goldenPb").GetString() == "通关", "collected golden overrides death PB");
+JsonElement Pb(CctState s) => SyncJson.Element(OverlayProjection.Build(Snapshot() with {
+    Cct = Snapshot().Cct! with { State = s }
+}, new {}, [], null, null, "ready")).GetProperty("cct");
+var attempts = state with { Metadata = state.Metadata with { Chapter = new(0, 0) },
+    Rooms = [new("a2", [], 0, 0, 2, 1, 0), new("b", [], 0, 0, 4, 0, 0)] };
+var best = Pb(attempts);
+Check(best.GetProperty("goldenPb").GetString() == "b", "total PB uses furthest route room");
+Check(best.GetProperty("sessionGoldenPb").GetString() == "First", "session PB uses grouped member and custom name");
+Check(best.GetProperty("goldenPbRoomIndex").GetInt32() == 2, "total PB room index counts grouped rooms once");
+Check(best.GetProperty("sessionGoldenPbRoomIndex").GetInt32() == 1, "session PB progress is independent");
+Check(Pb(attempts with { Rooms = [] }).GetProperty("goldenPbRoomIndex").ValueKind == JsonValueKind.Null, "missing PB has unknown progress");
+Check(Pb(attempts with { Metadata = attempts.Metadata with { Route = route with {
+    Nodes = [new("a", "start", ["a2"], true, "First"), new("b", "end", [], false, null)]
+} } }).GetProperty("goldenPbRoomIndex").GetInt32() == 1, "non-gameplay rooms excluded from PB progress");
+Check(p.GetProperty("cct").GetProperty("goldenPbRoomIndex").GetInt32() == 2, "completed PB fills progress");
+Check(Pb(attempts with { Rooms = [] }).GetProperty("sessionGoldenPb").ValueKind == JsonValueKind.Null, "empty session has unknown PB");
+Check(Pb(attempts with { Metadata = attempts.Metadata with { Route = route with { IgnoredRooms = ["b"] } } })
+    .GetProperty("goldenPb").GetString() == "First", "ignored rooms do not contribute PB");
+Check(Pb(attempts with { Metadata = attempts.Metadata with { Chapter = new(1, 0) } })
+    .GetProperty("sessionGoldenPb").GetString() == "First", "lifetime completion does not replace session PB");
 
 var probe = new TcpListener(IPAddress.Loopback,0);probe.Start();int port=((IPEndPoint)probe.LocalEndpoint).Port;probe.Stop();
 string folder=Path.Combine(Path.GetTempPath(),"GoldenLinkOverlay-"+Guid.NewGuid());

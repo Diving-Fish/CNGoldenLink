@@ -45,6 +45,13 @@ function render(){
   set('map-name',m.mapName||'未匹配地图');set('campaign',m.campaign||'地图包未知');
   set('tier',m.tier||'—');set('challenge',m.challenge||'未选择挑战');
   set('pb',format(d.area.noGoldenBestDeaths));set('total',format(d.area.totalDeaths));
+  $('practice-pb').hidden=d.live.holdingGolden;$('golden-pb-panel').hidden=!d.live.holdingGolden;
+  for(const [id,index,name] of [['golden-pb',c.goldenPbRoomIndex,c.goldenPb],['session-golden-pb',c.sessionGoldenPbRoomIndex,c.sessionGoldenPb]]){
+    set(id,`${format(index)} / ${format(c.roomCount)}`);
+    const bar=$(id+'-bar'),known=index!=null&&c.roomCount>0;
+    bar.value=known?Math.min(1,Math.max(0,index/c.roomCount)):0;
+    bar.title=name??'暂无记录';bar.setAttribute('aria-valuetext',known?`${index} / ${c.roomCount}，${name??''}`:'暂无记录');
+  }
   set('room',d.live.room||'等待关卡');set('room-count',`${format(c.roomIndex)} / ${format(c.roomCount)}`);
   set('cp-label',c.checkpointIndex==null?'—':`CP ${c.checkpointIndex} / ${c.checkpoints.length}`);
   set('streak',format(c.streak));set('best-streak',format(c.bestStreak));set('success',format(c.successRate,2));

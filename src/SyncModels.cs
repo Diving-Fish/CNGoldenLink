@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace CNGoldenLink;
 
 public sealed record LiveObservation(string? Sid, string? Side, string? Room, bool? Paused,
-    bool? Transitioning, bool? HoldingGolden, bool CctAvailable, bool? CctTrackingPaused);
+    bool? Transitioning, bool? HoldingGolden, bool CctAvailable, bool? CctTrackingPaused, string? DatasetId = null);
 public sealed record CctRoom(string RoomKey, bool[] PreviousAttempts, int SuccessStreak,
     int SuccessStreakBest, int GoldenBerryDeaths, int GoldenBerryDeathsSession, int DeathsInCurrentRun);
 public sealed record RouteNode(string RoomKey, string CheckpointKey, string[] GroupedRooms, bool IsNonGameplayRoom, string? CustomRoomName);
