@@ -1,6 +1,6 @@
 # CNGoldenLink
 
-CN 金榜的 Celeste 联动 Mod，版本 0.2.1。
+CN 金榜的 Celeste 联动 Mod，版本 0.2.2。
 
 在 Mod 菜单开启连接后，通过浏览器登录 CN 金榜并授权，默认每 5 秒同步当前状态、CCT 统计和地图死亡数据。同步间隔可在菜单调整，服务地址可通过设置文件的 `ServiceBaseUrl` 修改。
 
@@ -42,7 +42,7 @@ Overlay 开关独立于金榜上传开关，关闭上传仍可显示本地 CCT �
 
 ## 构建
 
-需要 .NET 8 SDK、安装 Everest 的 Celeste，以及配置版本的 CCT。先启动一次游戏，生成 CCT 程序集缓存。
+需要 Windows、Python 3、.NET 8 SDK、安装 Everest 的 Celeste，以及配置版本的 CCT。先启动一次游戏，生成 CCT 程序集缓存。
 
 默认将项目放在 Celeste 游戏目录下，在项目目录执行：
 
@@ -57,7 +57,11 @@ dotnet build -c Release
 ./scripts/package.ps1 -CelestePath "E:/SteamLibrary/steamapps/common/Celeste"
 ```
 
-生成的 `artifacts/CNGoldenLink-0.2.1.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
+生成的 `artifacts/CNGoldenLink-0.2.2.zip` 放入游戏 `Mods` 目录，移走旧版本后启动游戏。安装包不包含游戏或 CCT 程序集。
+
+打包脚本自动扫描 `Dialog/Simplified Chinese.txt`，对照原版字库生成缺字补充，将 `.fnt` 和 PNG 放入安装包的 `Dialog/Fonts`。模组自身的中文 Dialog 无需额外安装 Chinese Font Pack 或 Extended Chinese Fonts。每次打包都会重新生成，新增文案无需手动补字；运行时返回的任意中文文本不在此覆盖范围，OBS Overlay 使用浏览器字体。
+
+字体构建输入固定在 `tools/fonts`，生成前校验 SHA-256，无需下载或安装系统字体。可单独执行 `python scripts/generate-fonts.py`，结果位于 `artifacts/fonts`。字体工具和原始 OTF 不进入发布包，包内保留字体许可。输入来源见 [tools/fonts/README.md](tools/fonts/README.md)。
 
 运行测试：
 
@@ -70,7 +74,7 @@ node --test overlay-preview/test/data.test.mjs
 
 ## 自动发布
 
-GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.2.1` 或 `0.2.1`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
+GitHub Actions 在推送版本标签时运行测试、构建并发布 Release。标签必须指向 main 中的提交，格式为 `v0.2.2` 或 `0.2.2`，并与 `.csproj` 和 `everest.yaml` 中的 Mod 版本一致。Actions 页面也可手动运行构建，仅生成下载产物，不发布。
 
 构建时自动按 `everest.yaml` 的依赖版本下载 Everest 官方 stable Release 的 `lib-stripped.zip` 和 CCT 官方对应 Release 的安装包。更新 CCT 时修改清单中的依赖版本即可；不自动追踪 latest。新版本 API 不兼容会导致编译失败，行为兼容性仍需游戏内验证。
 

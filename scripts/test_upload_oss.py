@@ -18,7 +18,7 @@ class ServerError(Exception):
 
 class UploadTests(unittest.TestCase):
     def test_upload_retry_and_conflict(self):
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+        with tempfile.TemporaryDirectory() as directory, patch("builtins.print"), patch.dict(os.environ, {
             "OSS_ACCESS_KEY_ID": "test-id", "OSS_ACCESS_KEY_SECRET": "test-secret",
             "GITHUB_OUTPUT": str(Path(directory) / "output"),
         }):
@@ -44,7 +44,7 @@ class UploadTests(unittest.TestCase):
             self.assertNotIn("test-secret", output)
 
     def test_missing_credentials_and_invalid_filename(self):
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
+        with tempfile.TemporaryDirectory() as directory, patch("builtins.print"), patch.dict(os.environ, {}, clear=True):
             package = Path(directory) / "CNGoldenLink-0.1.0.zip"
             package.touch()
             with self.assertRaisesRegex(ValueError, "Missing required secret"):

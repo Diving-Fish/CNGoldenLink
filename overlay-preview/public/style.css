@@ -1339,7 +1339,10 @@ html.obs-root {
 .board .challenge {display:block;border-radius:8px;margin-top:20px;padding:16px}
 .board .challenge>b {display:block;font-size:32px;line-height:1.1;margin:10px 0 14px;overflow-wrap:anywhere}
 .board .tier-row {display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;font-size:19px;color:var(--muted)}
-.board .tier {font:500 32px Bahnschrift,sans-serif;letter-spacing:0}
+.board .tier {font:500 32px Bahnschrift,sans-serif;letter-spacing:0;white-space:nowrap}
+.board .tier.tier-long {font-size:24px}
+.board .tier-row {gap:8px}
+.board .tier-row>span {flex-shrink:0}
 .board .route {margin-top:22px}
 .board .section-label,.board .section-label>span {font-size:22px;letter-spacing:0}
 .board #cp-label {font-size:18px}

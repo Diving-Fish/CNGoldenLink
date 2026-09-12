@@ -1,4 +1,17 @@
 // Frontends depend only on this versioned presentation DTO, never on credentials or raw CCT internals.
+export function formatTier(value) {
+  if (!value) return '—';
+  const code=value.trim().toLowerCase();
+  const tier=/^([hml])([0-3])$/.exec(code);
+  if(tier)return `${{h:'High',m:'Mid',l:'Low'}[tier[1]]} T${tier[2]}`;
+  if(/^t(?:-1|[0-7])$/.test(code))return code.toUpperCase();
+  const standard=/^(high|mid|low)(?:-|\s+)(?:std|standard)$/.exec(code);
+  if(standard)return `${standard[1][0].toUpperCase()+standard[1].slice(1)} Std`;
+  if(code==='standard'||code==='std')return 'Std';
+  if(code==='undetermined')return '未定档';
+  return value;
+}
+
 export function normalize(raw) {
   if(raw?.schema !== 'goldenlink.overlay/1') throw new Error('Unsupported overlay data');
   const number = v => typeof v === 'number' && Number.isFinite(v) ? v : null;

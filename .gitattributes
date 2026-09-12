@@ -5,3 +5,10 @@
 *.yaml text eol=lf
 *.json text eol=lf
 *.ps1 text eol=crlf
+
+# Preserve checksummed upstream font build inputs byte-for-byte.
+tools/fonts/chinese.bmfc -text
+tools/fonts/chinese.fnt -text
+tools/fonts/*.otf -text
+tools/fonts/*.exe -text
+tools/fonts/chinese.fnt whitespace=cr-at-eol

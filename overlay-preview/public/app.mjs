@@ -1,4 +1,4 @@
-import {DemoSource,HttpSource} from './data.mjs';
+import {DemoSource,HttpSource,formatTier} from './data.mjs';
 const $=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search),orbit=location.pathname==='/orbit',obs=params.has('obs'),liveMode=document.body.dataset.source==='live'||params.get('source')==='live';
 document.body.classList.toggle('orbit-page',orbit);document.body.classList.toggle('obs',obs);$('board').classList.toggle('orbit',orbit);
@@ -43,7 +43,9 @@ function render(){
   set('status',!d.connected?'连接中断':d.live.paused?'已暂停':d.live.holdingGolden?'正在带金':'练习中');
   set('source-label',d.source==='demo'?'演示':'实时');
   set('map-name',m.mapName||'未匹配地图');set('campaign',m.campaign||'地图包未知');
-  set('tier',m.tier||'—');set('challenge',m.challenge||'未选择挑战');
+  const tierLabel=formatTier(m.tier);
+  set('tier',tierLabel);$('tier').classList.toggle('tier-long',tierLabel.length>4);
+  set('challenge',m.challenge||'未选择挑战');
   set('pb',format(d.area.noGoldenBestDeaths));set('total',format(d.area.totalDeaths));
   $('practice-pb').hidden=d.live.holdingGolden;$('golden-pb-panel').hidden=!d.live.holdingGolden;
   for(const [id,index,name] of [['golden-pb',c.goldenPbRoomIndex,c.goldenPb],['session-golden-pb',c.sessionGoldenPbRoomIndex,c.sessionGoldenPb]]){

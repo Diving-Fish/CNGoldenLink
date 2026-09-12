@@ -51,13 +51,15 @@ jobs:
         run: |
           python -B -m unittest discover -s scripts -p 'test_upload_oss.py'
           if ($LASTEXITCODE -ne 0) { throw 'OSS upload tests failed' }
+          python -B -m unittest discover -s scripts -p 'test_fonts.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Font validation tests failed' }
           dotnet run --project tests/Diagnostics.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests failed' }
           dotnet run --project sync-tests/Sync.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Sync tests failed' }
           dotnet run --project overlay-tests/OverlayTests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Overlay tests failed' }
-      - name: Build release package
+      - name: Build release package including Chinese font supplement
         shell: pwsh
         run: |
           $refs = Join-Path $PWD 'artifacts/ci/references'

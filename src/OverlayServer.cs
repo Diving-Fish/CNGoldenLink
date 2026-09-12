@@ -104,7 +104,7 @@ internal sealed class OverlayServer : IDisposable
                 catalog = new { mapName = Text(map, "cnName") ?? Text(map, "name"), mapNameEn = Text(map, "name"),
                     campaign = Text(pack, "cnName") ?? Text(pack, "name"),
                     challenge = challenge.ValueKind == JsonValueKind.Object ? Text(challenge, "name") : null,
-                    tier = tier == "undetermined" ? "未定档" : tier?.ToUpperInvariant(), verified = true };
+                    tier, verified = true };
                 choices = list.Select(ch => (object)new { id = Text(ch, "id"), name = Text(ch, "name"), tier = Text(ch, "tier") }).ToArray();
             }
             return Encoding.UTF8.GetBytes(SyncJson.Serialize(OverlayProjection.Build(snapshot, catalog, choices, mapId, selected, contextStatus)));

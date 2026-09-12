@@ -11,6 +11,8 @@ $manifest = Get-Content -LiteralPath (Join-Path $repoPath 'everest.yaml') -Raw
 if ($manifest -notmatch "(?m)^  Version: $([regex]::Escape($version))\s*$") { throw 'everest.yaml version must match project Version' }
 dotnet build $projectPath -c Release "-p:CelestePath=$CelestePath" "-p:CctAssemblyPath=$CctAssemblyPath" --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+python (Join-Path $PSScriptRoot 'generate-fonts.py')
+if ($LASTEXITCODE -ne 0) { throw 'Font generation failed' }
 Add-Type -AssemblyName System.IO.Compression
 $outputPath = Join-Path $repoPath 'artifacts'
 New-Item -ItemType Directory -Force $outputPath | Out-Null
@@ -24,6 +26,12 @@ try {
         'Dialog/English.txt' = 'Dialog/English.txt'
         'Dialog/Simplified Chinese.txt' = 'Dialog/Simplified Chinese.txt'
         'README.md' = 'README.md'
+        'Dialog/Fonts/OFL.txt' = 'tools/fonts/OFL.txt'
+    }
+    foreach ($font in Get-ChildItem -LiteralPath (Join-Path $repoPath 'artifacts/fonts') -File) {
+        if ($font.Extension -in '.fnt', '.png') {
+            $files["Dialog/Fonts/$($font.Name)"] = "artifacts/fonts/$($font.Name)"
+        }
     }
     foreach ($entryName in $files.Keys) {
         $entry = $archive.CreateEntry($entryName)
